@@ -375,7 +375,7 @@ func TestListRuns(t *testing.T) {
 		t.Fatalf("limit passed = %d", f.runs.gotLimit)
 	}
 
-	for _, bad := range []string{"abc", "0", "201"} {
+	for _, bad := range []string{"abc", "0", "101"} {
 		p := decodeProblem(t, f.do(http.MethodGet, "/api/v1/sync/runs?limit="+bad, nil), http.StatusBadRequest)
 		if _, ok := p.Errors["limit"]; !ok {
 			t.Errorf("limit=%s: errors = %v", bad, p.Errors)

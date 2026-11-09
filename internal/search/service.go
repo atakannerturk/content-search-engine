@@ -30,13 +30,14 @@ const (
 
 // Params are the raw query-string values of a search request.
 type Params struct {
-	Query    string
-	Type     string
-	Provider string
-	Sort     string
-	Order    string
-	Page     string
-	PerPage  string
+	Query          string
+	Type           string
+	Provider       string
+	Sort           string
+	Order          string
+	Page           string
+	PerPage        string
+	IncludeDeleted string
 }
 
 // Normalize validates p and applies defaults. It returns a
@@ -98,6 +99,14 @@ func Normalize(p Params) (domain.SearchQuery, error) {
 			ve.Add("per_page", fmt.Sprintf("must be an integer between 1 and %d", domain.MaxPerPage))
 		} else {
 			q.PerPage = n
+		}
+	}
+	if raw := strings.TrimSpace(p.IncludeDeleted); raw != "" {
+		b, err := strconv.ParseBool(raw)
+		if err != nil {
+			ve.Add("include_deleted", "must be true or false")
+		} else {
+			q.IncludeDeleted = b
 		}
 	}
 	if err := ve.OrNil(); err != nil {

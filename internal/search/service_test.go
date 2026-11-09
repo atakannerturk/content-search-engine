@@ -39,6 +39,13 @@ func TestNormalizeValues(t *testing.T) {
 	if q.Type == nil || *q.Type != domain.TypeText {
 		t.Fatalf("article must normalise to text, got %v", q.Type)
 	}
+	if q.IncludeDeleted {
+		t.Fatal("include_deleted must default to false")
+	}
+	withDeleted, err := Normalize(Params{IncludeDeleted: "true"})
+	if err != nil || !withDeleted.IncludeDeleted {
+		t.Fatalf("include_deleted=true not applied: %+v %v", withDeleted, err)
+	}
 }
 
 func TestNormalizeErrors(t *testing.T) {
@@ -61,6 +68,7 @@ func TestNormalizeErrors(t *testing.T) {
 		{"per_page too large", Params{PerPage: "1000"}, "per_page"},
 		{"query too long", Params{Query: strings.Repeat("a", MaxQueryLength+1)}, "q"},
 		{"provider too long", Params{Provider: strings.Repeat("p", MaxProviderLength+1)}, "provider"},
+		{"include_deleted not boolean", Params{IncludeDeleted: "maybe"}, "include_deleted"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"encoding/json"
+	"math"
 	"net/http"
 	"time"
 
@@ -125,12 +126,12 @@ func toContentResponse(c domain.ScoredContent) contentResponse {
 			Reactions:          c.Metrics.Reactions,
 			Comments:           c.Metrics.Comments,
 		},
-		Score: c.Score.Final,
+		Score: round(c.Score.Final),
 		ScoreBreakdown: breakdownResponse{
-			Base:               c.Score.Base,
-			TypeCoefficient:    c.Score.TypeCoefficient,
-			Freshness:          c.Score.Freshness,
-			Engagement:         c.Score.Engagement,
+			Base:               round(c.Score.Base),
+			TypeCoefficient:    round(c.Score.TypeCoefficient),
+			Freshness:          round(c.Score.Freshness),
+			Engagement:         round(c.Score.Engagement),
 			FreshnessExpiresAt: utcPtr(c.Score.FreshnessExpiresAt),
 		},
 		ScoredAt:    c.ScoredAt.UTC(),
@@ -194,6 +195,16 @@ func toRunResponse(run domain.SyncRun) runResponse {
 		SkippedReasons: reasons,
 		Flags:          flags,
 	}
+}
+
+// scoreDecimals is the precision scores are presented with. Storage and
+// ordering use the full float64; presenting six decimals hides binary
+// floating-point artefacts such as 0.8400000000000001 without affecting
+// any realistic comparison.
+const scoreDecimals = 1e6
+
+func round(f float64) float64 {
+	return math.Round(f*scoreDecimals) / scoreDecimals
 }
 
 func utcPtr(t *time.Time) *time.Time {

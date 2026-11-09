@@ -17,7 +17,7 @@ import (
 // Limits of the sync run listing.
 const (
 	defaultRunsLimit = 20
-	maxRunsLimit     = 200
+	maxRunsLimit     = 100
 	readinessTimeout = 2 * time.Second
 )
 
@@ -41,13 +41,14 @@ func (h *handlers) handle(fn handlerFunc) http.Handler {
 func (h *handlers) listContents(w http.ResponseWriter, r *http.Request) error {
 	qs := r.URL.Query()
 	q, err := search.Normalize(search.Params{
-		Query:    qs.Get("q"),
-		Type:     qs.Get("type"),
-		Provider: qs.Get("provider"),
-		Sort:     qs.Get("sort"),
-		Order:    qs.Get("order"),
-		Page:     qs.Get("page"),
-		PerPage:  qs.Get("per_page"),
+		Query:          qs.Get("q"),
+		Type:           qs.Get("type"),
+		Provider:       qs.Get("provider"),
+		Sort:           qs.Get("sort"),
+		Order:          qs.Get("order"),
+		Page:           qs.Get("page"),
+		PerPage:        qs.Get("per_page"),
+		IncludeDeleted: qs.Get("include_deleted"),
 	})
 	if err != nil {
 		return err
