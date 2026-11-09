@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed version="2">
+  <generator>mock</generator>
+  <items>
+    <item lang="en">
+      <id>x1</id>
+      <headline>Video With Extra Fields</headline>
+      <type>video</type>
+      <author>
+        <name>Someone</name>
+      </author>
+      <stats>
+        <views>500</views>
+        <likes>20</likes>
+        <duration>01:00</duration>
+        <shares>3</shares>
+      </stats>
+      <publication_date>2024-03-15</publication_date>
+      <thumbnail>https://example.test/x1.jpg</thumbnail>
+      <categories>
+        <category>devops</category>
+      </categories>
+    </item>
+  </items>
+  <meta>
+    <total_count>1</total_count>
+    <current_page>1</current_page>
+    <items_per_page>10</items_per_page>
+    <next/>
+  </meta>
+</feed>

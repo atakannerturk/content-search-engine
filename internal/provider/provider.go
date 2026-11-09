@@ -11,6 +11,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strconv"
 
 	"github.com/atakannerturk/content-search-engine/internal/domain"
@@ -58,6 +59,19 @@ func ParsePageCursor(cursor string) (int, error) {
 		return 0, fmt.Errorf("invalid page cursor %q", cursor)
 	}
 	return page, nil
+}
+
+// PageURL sets the page query parameter on a configured feed URL, keeping any
+// parameters the URL already carries.
+func PageURL(base string, page int) (string, error) {
+	u, err := url.Parse(base)
+	if err != nil {
+		return "", fmt.Errorf("parse url %q: %w", base, err)
+	}
+	q := u.Query()
+	q.Set("page", strconv.Itoa(page))
+	u.RawQuery = q.Encode()
+	return u.String(), nil
 }
 
 // HasMorePages decides whether a page-numbered provider should be asked for

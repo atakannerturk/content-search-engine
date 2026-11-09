@@ -1,0 +1,57 @@
+{
+  "contents": [
+    {
+      "id": "v1",
+      "title": "Go Programming Tutorial",
+      "type": "video",
+      "metrics": {
+        "views": 15000,
+        "likes": 1200,
+        "duration": "15:30"
+      },
+      "published_at": "2024-03-15T10:00:00Z",
+      "tags": ["programming", "tutorial"]
+    },
+    {
+      "id": "v2",
+      "title": "Advanced Go Concurrency Patterns",
+      "type": "video",
+      "metrics": {
+        "views": 25000,
+        "likes": 2100,
+        "duration": "22:45"
+      },
+      "published_at": "2024-03-14T15:30:00Z",
+      "tags": ["programming", "advanced", "concurrency"]
+    },
+    {
+      "id": "v3",
+      "title": "Building RESTful APIs with Go",
+      "type": "video",
+      "metrics": {
+        "views": 18500,
+        "likes": 1500,
+        "duration": "19:15"
+      },
+      "published_at": "2024-03-13T09:15:00Z",
+      "tags": ["programming", "api", "rest"]
+    },
+    {
+      "id": "v4",
+      "title": "Go Testing Best Practices",
+      "type": "video",
+      "metrics": {
+        "views": 12000,
+        "likes": 950,
+        "duration": "17:20"
+      },
+      "published_at": "2024-03-12T14:20:00Z",
+      "tags": ["programming", "testing", "best-practices"]
+    }
+  ],
+  "pagination": {
+    "total": 150,
+    "page": 1,
+    "per_page": 10
+  }
+} 

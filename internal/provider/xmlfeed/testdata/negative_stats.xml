@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed>
+  <items>
+    <item>
+      <id>n1</id>
+      <headline>Article With Negative Counters</headline>
+      <type>article</type>
+      <stats>
+        <reading_time>-8</reading_time>
+        <reactions>-450</reactions>
+        <comments>3</comments>
+      </stats>
+      <publication_date>2024-03-14</publication_date>
+    </item>
+  </items>
+  <meta>
+    <total_count>1</total_count>
+    <current_page>1</current_page>
+    <items_per_page>10</items_per_page>
+  </meta>
+</feed>

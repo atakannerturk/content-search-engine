@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed>
+  <items>
+    <item>
+      <id>d1</id>
+      <headline>Video Published Soon</headline>
+      <type>video</type>
+      <stats>
+        <views>1</views>
+        <likes>1</likes>
+      </stats>
+      <publication_date>soon</publication_date>
+    </item>
+    <item>
+      <id>d2</id>
+      <headline>Video Published With A Timestamp</headline>
+      <type>video</type>
+      <stats>
+        <views>1</views>
+        <likes>1</likes>
+      </stats>
+      <publication_date>2024-03-14T15:30:00Z</publication_date>
+    </item>
+  </items>
+  <meta>
+    <total_count>2</total_count>
+    <current_page>1</current_page>
+    <items_per_page>10</items_per_page>
+  </meta>
+</feed>

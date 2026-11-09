@@ -1,0 +1,13 @@
+{
+  "contents": [
+    {
+      "id": "u1",
+      "title": "Video With Unreadable Duration",
+      "type": "video",
+      "metrics": {"views": 300, "likes": 12, "duration": "n/a"},
+      "published_at": "2024-03-15T10:00:00Z",
+      "tags": []
+    }
+  ],
+  "pagination": {"total": 1, "page": 1, "per_page": 10}
+}

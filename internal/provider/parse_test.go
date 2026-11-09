@@ -122,6 +122,29 @@ func TestPageCursor(t *testing.T) {
 	}
 }
 
+func TestPageURL(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		base string
+		page int
+		want string
+	}{
+		{"https://feeds.test/provider1", 1, "https://feeds.test/provider1?page=1"},
+		{"https://feeds.test/provider1?format=json", 2, "https://feeds.test/provider1?format=json&page=2"},
+		{"https://feeds.test/provider1?page=9", 3, "https://feeds.test/provider1?page=3"},
+	}
+	for _, tc := range tests {
+		got, err := PageURL(tc.base, tc.page)
+		if err != nil || got != tc.want {
+			t.Errorf("PageURL(%q, %d) = (%q, %v), want %q", tc.base, tc.page, got, err, tc.want)
+		}
+	}
+	if _, err := PageURL("://missing-scheme", 1); err == nil {
+		t.Error("PageURL should reject an unparsable url")
+	}
+}
+
 func TestHasMorePages(t *testing.T) {
 	t.Parallel()
 

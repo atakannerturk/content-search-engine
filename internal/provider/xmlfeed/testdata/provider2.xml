@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed>
+  <items>
+    <item>
+      <id>v1</id>
+      <headline>Introduction to Docker</headline>
+      <type>video</type>
+      <stats>
+        <views>22000</views>
+        <likes>1800</likes>
+        <duration>25:15</duration>
+      </stats>
+      <publication_date>2024-03-15</publication_date>
+      <categories>
+        <category>devops</category>
+        <category>containers</category>
+      </categories>
+    </item>
+    <item>
+      <id>v2</id>
+      <headline>Kubernetes for Beginners</headline>
+      <type>video</type>
+      <stats>
+        <views>19500</views>
+        <likes>1600</likes>
+        <duration>28:45</duration>
+      </stats>
+      <publication_date>2024-03-14</publication_date>
+      <categories>
+        <category>devops</category>
+        <category>kubernetes</category>
+      </categories>
+    </item>
+    <item>
+      <id>v3</id>
+      <headline>CI/CD Pipeline Implementation</headline>
+      <type>video</type>
+      <stats>
+        <views>15800</views>
+        <likes>1250</likes>
+        <duration>23:30</duration>
+      </stats>
+      <publication_date>2024-03-13</publication_date>
+      <categories>
+        <category>devops</category>
+        <category>ci-cd</category>
+      </categories>
+    </item>
+    <item>
+      <id>a1</id>
+      <headline>Clean Architecture in Go</headline>
+      <type>article</type>
+      <stats>
+        <reading_time>8</reading_time>
+        <reactions>450</reactions>
+        <comments>25</comments>
+      </stats>
+      <publication_date>2024-03-14</publication_date>
+      <categories>
+        <category>programming</category>
+        <category>architecture</category>
+      </categories>
+    </item>
+  </items>
+  <meta>
+    <total_count>75</total_count>
+    <current_page>1</current_page>
+    <items_per_page>10</items_per_page>
+  </meta>
+</feed> 

@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "contents": [
+    {
+      "id": "x1",
+      "title": "Video With Extra Fields",
+      "type": "video",
+      "metrics": {"views": 500, "likes": 20, "duration": "01:00", "shares": 3},
+      "published_at": "2024-03-15T10:00:00Z",
+      "tags": ["programming"],
+      "author": {"name": "Someone"},
+      "thumbnail": "https://example.test/x1.jpg"
+    }
+  ],
+  "pagination": {"total": 1, "page": 1, "per_page": 10, "next": null}
+}

@@ -1,0 +1,21 @@
+{
+  "contents": [
+    {
+      "id": "d1",
+      "title": "Video Published Soon",
+      "type": "video",
+      "metrics": {"views": 1, "likes": 1},
+      "published_at": "soon",
+      "tags": []
+    },
+    {
+      "id": "d2",
+      "title": "Video Published On A Date",
+      "type": "video",
+      "metrics": {"views": 1, "likes": 1},
+      "published_at": "2024-03-14",
+      "tags": []
+    }
+  ],
+  "pagination": {"total": 2, "page": 1, "per_page": 10}
+}

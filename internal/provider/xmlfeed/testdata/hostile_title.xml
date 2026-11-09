@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed>
+  <items>
+    <item>
+      <id>h1</id>
+      <headline>&lt;img src=x onerror=alert(1)&gt;</headline>
+      <type>video</type>
+      <stats>
+        <views>1</views>
+        <likes>0</likes>
+      </stats>
+      <publication_date>2024-03-15</publication_date>
+      <categories>
+        <category><![CDATA[<b>bold</b>]]></category>
+      </categories>
+    </item>
+  </items>
+  <meta>
+    <total_count>1</total_count>
+    <current_page>1</current_page>
+    <items_per_page>10</items_per_page>
+  </meta>
+</feed>
