@@ -770,6 +770,23 @@ func TestRecoverInterrupted(t *testing.T) {
 	}
 }
 
+func TestRecoverInterruptedLeavesRunsOfALockHolderAlone(t *testing.T) {
+	t.Parallel()
+
+	p := &fakeProvider{name: "p", pages: onePage()}
+	f := newFixture(t, []provider.Provider{p}, func(o *Options) { o.Locker = &fakeLocker{held: true} })
+	if _, err := f.runs.CreateRun(context.Background(), domain.SyncRun{Provider: "p", Status: domain.SyncRunning}); err != nil {
+		t.Fatal(err)
+	}
+	n, err := f.svc.RecoverInterrupted(context.Background())
+	if err != nil || n != 0 {
+		t.Fatalf("RecoverInterrupted = %d, %v; want 0 while another instance holds the lock", n, err)
+	}
+	if run := f.runs.byProvider("p"); run.Status != domain.SyncRunning {
+		t.Fatalf("a run owned by the lock holder must stay running: %+v", run)
+	}
+}
+
 func TestSchedulerRunsPeriodically(t *testing.T) {
 	t.Parallel()
 

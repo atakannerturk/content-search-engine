@@ -503,8 +503,20 @@ func (s *Service) rescoreLocked(ctx context.Context) (int, error) {
 }
 
 // RecoverInterrupted closes runs left in the running state by a previous
-// process; it is called once at startup.
+// process; it is called once at startup. When a Locker is configured it first
+// takes the synchronisation lock, so the runs of another instance that is
+// synchronising right now are not mistaken for leftovers.
 func (s *Service) RecoverInterrupted(ctx context.Context) (int, error) {
+	if s.locker != nil {
+		release, ok, err := s.locker.TryLock(ctx)
+		if err != nil {
+			return 0, fmt.Errorf("acquire sync lock: %w", err)
+		}
+		if !ok {
+			return 0, nil
+		}
+		defer release()
+	}
 	n, err := s.runs.MarkInterrupted(ctx, s.now().UTC())
 	if err != nil {
 		return 0, fmt.Errorf("mark interrupted runs: %w", err)

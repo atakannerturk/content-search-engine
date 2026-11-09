@@ -37,12 +37,14 @@ func (r *Repo) TryLock(ctx context.Context) (func(), bool, error) {
 		return nil, false, nil
 	}
 	release := func() {
-		// Best effort: pgx closes a connection whose statement failed with a
-		// network or context error, and a session-level lock dies with its
-		// session, so the lock is released either way.
 		unlockCtx, cancel := context.WithTimeout(context.Background(), unlockTimeout)
 		defer cancel()
-		_, _ = conn.Exec(unlockCtx, "SELECT pg_advisory_unlock($1)", syncLockKey)
+		if _, err := conn.Exec(unlockCtx, "SELECT pg_advisory_unlock($1)", syncLockKey); err != nil {
+			// A session-level lock dies with its session: closing the
+			// connection guarantees the lock never goes back into the pool
+			// still held. Release then discards the closed connection.
+			_ = conn.Conn().Close(unlockCtx)
+		}
 		conn.Release()
 	}
 	return release, true, nil
