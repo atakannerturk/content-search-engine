@@ -1,0 +1,846 @@
+openapi: 3.0.3
+info:
+  title: Content Search API
+  version: 1.0.0
+  description: |
+    Search API over content aggregated from several upstream providers.
+
+    The service periodically pulls `provider1` (a JSON feed) and `provider2`
+    (an XML feed), normalises every item to one content model, scores it and
+    stores it in PostgreSQL. Searches run against the stored copy, so provider
+    availability and rate limits never affect API latency.
+
+    ## Scoring
+
+        final = base * type_coefficient + freshness + engagement
+
+    | Term               | Video                        | Text                             |
+    |--------------------|------------------------------|----------------------------------|
+    | `base`             | `views / 1000 + likes / 100` | `reading_time + reactions / 50`  |
+    | `type_coefficient` | `1.5`                        | `1.0`                            |
+    | `engagement`       | `(likes / views) * 10`       | `(reactions / reading_time) * 5` |
+
+    `freshness` depends on the publication date: `+5` within 7 days, `+3`
+    within 30 days, `+1` within 90 days, otherwise `0`. Missing metrics count
+    as 0 and a zero denominator gives an engagement of 0. Scores are stored
+    with the item and recomputed when their freshness bonus expires.
+
+    ## Conventions
+
+    * Timestamps are RFC 3339 strings in UTC.
+    * Errors are RFC 7807 problem documents (`application/problem+json`).
+    * Requests are rate limited per client; a `429` carries `Retry-After`.
+    * Items a provider stopped returning are soft-deleted: searches skip them
+      and `GET /api/v1/contents/{id}` answers `410 Gone`.
+
+    This document is served at `/openapi.yaml`; an interactive viewer is
+    available at `/docs`.
+servers:
+  - url: http://localhost:8080
+    description: Local development
+tags:
+  - name: Contents
+    description: Search and read scored content.
+  - name: Sync
+    description: Trigger and inspect provider synchronisation.
+  - name: Health
+    description: Liveness and readiness probes.
+paths:
+  /api/v1/contents:
+    get:
+      tags: [Contents]
+      summary: Search content
+      description: |
+        Returns one page of items matching the filters. Without `q` every item
+        matches, which makes this the listing endpoint as well.
+      operationId: searchContents
+      parameters:
+        - name: q
+          in: query
+          description: |
+            Keyword query matched case-insensitively against titles and tags.
+            Empty or absent matches every item.
+          schema:
+            type: string
+          example: go
+        - name: type
+          in: query
+          description: |
+            Restrict results to one content type. `article` is accepted as an
+            alias of `text` and is echoed back as `text` in `meta.type`.
+          schema:
+            type: string
+            enum: [video, text, article]
+          example: video
+        - name: provider
+          in: query
+          description: Restrict results to one provider.
+          schema:
+            type: string
+          example: provider1
+        - name: sort
+          in: query
+          description: |
+            `score` orders by the persisted popularity score, `relevance` by
+            full-text match quality and `published_at` by publication date.
+            `relevance` requires a non-empty `q`; without it the request is
+            rejected with `400`.
+          schema:
+            type: string
+            enum: [score, relevance, published_at]
+            default: score
+        - name: order
+          in: query
+          description: Sort direction.
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        - name: page
+          in: query
+          description: 1-based page number.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 10000
+            default: 1
+        - name: per_page
+          in: query
+          description: Items per page.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: include_deleted
+          in: query
+          description: Also return soft-deleted items; they carry `deleted_at`.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: One page of matching items.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+              example:
+                data:
+                  - id: "provider2:a1"
+                    provider: provider2
+                    external_id: a1
+                    type: text
+                    title: Clean Architecture in Go
+                    tags: [programming, architecture]
+                    published_at: "2024-03-14T00:00:00Z"
+                    metrics:
+                      reading_time_minutes: 8
+                      reactions: 450
+                      comments: 25
+                    score: 298.25
+                    score_breakdown:
+                      base: 17
+                      type_coefficient: 1.0
+                      freshness: 0
+                      engagement: 281.25
+                    scored_at: "2026-11-09T12:00:00Z"
+                    first_seen_at: "2026-11-09T08:00:00Z"
+                    last_seen_at: "2026-11-09T12:00:00Z"
+                  # Items ranked between these two are omitted for brevity.
+                  - id: "provider1:v1"
+                    provider: provider1
+                    external_id: v1
+                    type: video
+                    title: Go Programming Tutorial
+                    tags: [programming, tutorial]
+                    published_at: "2024-03-15T10:00:00Z"
+                    metrics:
+                      views: 15000
+                      likes: 1200
+                      duration_seconds: 930
+                    score: 41.3
+                    score_breakdown:
+                      base: 27
+                      type_coefficient: 1.5
+                      freshness: 0
+                      engagement: 0.8
+                    scored_at: "2026-11-09T12:00:00Z"
+                    first_seen_at: "2026-11-09T08:00:00Z"
+                    last_seen_at: "2026-11-09T12:00:00Z"
+                meta:
+                  page: 1
+                  per_page: 20
+                  total: 8
+                  total_pages: 1
+                  sort: score
+                  order: desc
+                  q: ""
+                  type: ""
+                  provider: ""
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+  /api/v1/contents/{id}:
+    get:
+      tags: [Contents]
+      summary: Get one content item
+      description: |
+        Returns a single item by its public identifier. Soft-deleted items
+        answer `410 Gone`; unknown identifiers answer `404 Not Found`.
+      operationId: getContent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Public identifier in the form `<provider>:<external_id>`.
+          schema:
+            type: string
+          example: "provider1:v1"
+      responses:
+        '200':
+          description: The requested item.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Content'
+              example:
+                id: "provider1:v1"
+                provider: provider1
+                external_id: v1
+                type: video
+                title: Go Programming Tutorial
+                tags: [programming, tutorial]
+                published_at: "2024-03-15T10:00:00Z"
+                metrics:
+                  views: 15000
+                  likes: 1200
+                  duration_seconds: 930
+                score: 41.3
+                score_breakdown:
+                  base: 27
+                  type_coefficient: 1.5
+                  freshness: 0
+                  engagement: 0.8
+                scored_at: "2026-11-09T12:00:00Z"
+                first_seen_at: "2026-11-09T08:00:00Z"
+                last_seen_at: "2026-11-09T12:00:00Z"
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+  /api/v1/sync:
+    post:
+      tags: [Sync]
+      summary: Trigger a synchronisation
+      description: |
+        Starts a synchronisation of every provider in the background and
+        returns immediately. The runs started by this call share the returned
+        `batch_id`; follow their progress with `GET /api/v1/sync/runs`.
+
+        Only one synchronisation runs at a time, across all instances sharing
+        the database. The bearer token is only required when `SYNC_TOKEN` is
+        configured.
+      operationId: triggerSync
+      security:
+        - bearerAuth: []
+      responses:
+        '202':
+          description: The synchronisation was started.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncAccepted'
+              example:
+                batch_id: "0192f1b0-6c2a-7d8e-9f01-23456789abcd"
+                providers: [provider1, provider2]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+  /api/v1/sync/runs:
+    get:
+      tags: [Sync]
+      summary: List synchronisation runs
+      description: |
+        Returns the audit trail of recent runs, newest first. Every trigger
+        produces one run per provider; the runs of one trigger share a
+        `batch_id`.
+      operationId: listSyncRuns
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of runs to return.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: The most recent runs.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncRunList'
+              example:
+                data:
+                  - id: 12
+                    batch_id: "0192f1b0-6c2a-7d8e-9f01-23456789abcd"
+                    trigger: manual
+                    provider: provider2
+                    status: succeeded
+                    started_at: "2026-11-09T12:00:00Z"
+                    finished_at: "2026-11-09T12:00:04Z"
+                    pages: 1
+                    fetched: 4
+                    inserted: 0
+                    updated: 4
+                    skipped: 1
+                    deactivated: 0
+                    retries: 0
+                    rate_limit_waits: 0
+                    error: ""
+                    skipped_reasons:
+                      - external_id: p9
+                        reason: "unknown content type \"podcast\""
+                    flags: []
+                  - id: 11
+                    batch_id: "0192f1b0-6c2a-7d8e-9f01-23456789abcd"
+                    trigger: manual
+                    provider: provider1
+                    status: succeeded
+                    started_at: "2026-11-09T12:00:00Z"
+                    finished_at: "2026-11-09T12:00:03Z"
+                    pages: 1
+                    fetched: 4
+                    inserted: 4
+                    updated: 0
+                    skipped: 0
+                    deactivated: 0
+                    retries: 1
+                    rate_limit_waits: 1
+                    error: ""
+                    skipped_reasons: []
+                    flags: [max_pages_reached]
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+  /healthz:
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      description: Answers as soon as the process serves HTTP; it checks no dependency.
+      operationId: getHealth
+      responses:
+        '200':
+          description: The process is alive.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: ok
+  /readyz:
+    get:
+      tags: [Health]
+      summary: Readiness probe
+      description: |
+        Reports whether the service can serve requests, with one entry per
+        dependency in `checks`. A failing dependency yields `503`.
+      operationId: getReadiness
+      responses:
+        '200':
+          description: Every dependency is reachable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: ok
+                checks:
+                  database: ok
+                  cache: ok
+        '503':
+          description: At least one dependency is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: degraded
+                checks:
+                  database: ok
+                  cache: "dial tcp 127.0.0.1:6379: connection refused"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        Static token configured with the `SYNC_TOKEN` environment variable.
+        It is only enforced when the variable is set; otherwise
+        `POST /api/v1/sync` is open.
+  headers:
+    RetryAfter:
+      description: Seconds to wait before repeating the request.
+      schema:
+        type: integer
+        minimum: 0
+  responses:
+    BadRequest:
+      description: A parameter is invalid; `errors` names each offending parameter.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: "about:blank"
+            title: Bad Request
+            status: 400
+            detail: invalid query parameters
+            instance: /api/v1/contents?per_page=500
+            errors:
+              per_page: must be between 1 and 100
+    Unauthorized:
+      description: A sync token is configured and the request did not present it.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: "about:blank"
+            title: Unauthorized
+            status: 401
+            detail: missing or invalid bearer token
+            instance: /api/v1/sync
+    NotFound:
+      description: No item has the requested identifier.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: "about:blank"
+            title: Not Found
+            status: 404
+            detail: content provider1:v99 not found
+            instance: /api/v1/contents/provider1:v99
+    Conflict:
+      description: A synchronisation is already running; `batch_id` identifies it.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: "about:blank"
+            title: Conflict
+            status: 409
+            detail: synchronisation already in progress
+            instance: /api/v1/sync
+            batch_id: "0192f1b0-6c2a-7d8e-9f01-23456789abcd"
+    Gone:
+      description: The item exists but its provider no longer lists it.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: "about:blank"
+            title: Gone
+            status: 410
+            detail: content provider1:v1 is no longer provided
+            instance: /api/v1/contents/provider1:v1
+    TooManyRequests:
+      description: The client exceeded its request budget.
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: "about:blank"
+            title: Too Many Requests
+            status: 429
+            detail: rate limit exceeded
+            instance: /api/v1/contents
+    UnexpectedError:
+      description: An unexpected error; the body never leaks internal details.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: "about:blank"
+            title: Internal Server Error
+            status: 500
+            detail: internal server error
+            instance: /api/v1/contents
+  schemas:
+    Content:
+      type: object
+      description: One normalised and scored provider item.
+      required:
+        - id
+        - provider
+        - external_id
+        - type
+        - title
+        - published_at
+        - metrics
+        - score
+        - score_breakdown
+        - scored_at
+        - first_seen_at
+        - last_seen_at
+      properties:
+        id:
+          type: string
+          description: Stable public identifier in the form `<provider>:<external_id>`.
+          example: "provider1:v1"
+        provider:
+          type: string
+          description: Name of the provider the item came from.
+          example: provider1
+        external_id:
+          type: string
+          description: Identifier of the item within its provider.
+          example: v1
+        type:
+          type: string
+          description: Canonical content type.
+          enum: [video, text]
+        title:
+          type: string
+          example: Go Programming Tutorial
+        tags:
+          type: array
+          description: Provider tags, trimmed and de-duplicated; may be empty.
+          items:
+            type: string
+          example: [programming, tutorial]
+        published_at:
+          type: string
+          format: date-time
+          description: Publication time in UTC; a bare provider date is midnight UTC.
+        metrics:
+          $ref: '#/components/schemas/Metrics'
+        score:
+          type: number
+          format: double
+          description: Final score, `base * type_coefficient + freshness + engagement`.
+          example: 41.3
+        score_breakdown:
+          $ref: '#/components/schemas/ScoreBreakdown'
+        scored_at:
+          type: string
+          format: date-time
+          description: When the score was last computed.
+        first_seen_at:
+          type: string
+          format: date-time
+          description: When the item was first fetched from its provider.
+        last_seen_at:
+          type: string
+          format: date-time
+          description: When the item was last returned by its provider.
+        deleted_at:
+          type: string
+          format: date-time
+          description: |
+            When the provider stopped returning the item. Present only on
+            soft-deleted items, which searches include only with
+            `include_deleted=true`.
+    Metrics:
+      type: object
+      description: |
+        Raw engagement signals as reported by the provider. Videos report
+        `views`, `likes` and `duration_seconds`; texts report
+        `reading_time_minutes`, `reactions` and `comments`. A metric the
+        provider did not send is omitted.
+      properties:
+        views:
+          type: integer
+          format: int64
+          minimum: 0
+        likes:
+          type: integer
+          format: int64
+          minimum: 0
+        duration_seconds:
+          type: integer
+          format: int64
+          minimum: 0
+        reading_time_minutes:
+          type: integer
+          format: int64
+          minimum: 0
+        reactions:
+          type: integer
+          format: int64
+          minimum: 0
+        comments:
+          type: integer
+          format: int64
+          minimum: 0
+    ScoreBreakdown:
+      type: object
+      description: The terms of the scoring formula as applied to the item.
+      required: [base, type_coefficient, freshness, engagement]
+      properties:
+        base:
+          type: number
+          format: double
+          description: Video `views / 1000 + likes / 100`; text `reading_time + reactions / 50`.
+          example: 27
+        type_coefficient:
+          type: number
+          format: double
+          description: Video `1.5`, text `1.0`.
+          example: 1.5
+        freshness:
+          type: number
+          format: double
+          description: Recency bonus of `5`, `3`, `1` or `0`.
+          example: 0
+        engagement:
+          type: number
+          format: double
+          description: Video `(likes / views) * 10`; text `(reactions / reading_time) * 5`.
+          example: 0.8
+        freshness_expires_at:
+          type: string
+          format: date-time
+          description: >-
+            Instant at which the freshness bonus next decreases and the score is
+            recomputed; absent once the bonus has reached zero.
+    SearchResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Content'
+        meta:
+          $ref: '#/components/schemas/SearchMeta'
+    SearchMeta:
+      type: object
+      description: The normalised request echoed back together with the result counts.
+      required: [page, per_page, total, total_pages, sort, order, q, type, provider]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        per_page:
+          type: integer
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          minimum: 0
+          description: Number of items matching the filters across all pages.
+        total_pages:
+          type: integer
+          minimum: 0
+          description: Number of pages for `per_page`; `0` when nothing matches.
+        sort:
+          type: string
+          enum: [score, relevance, published_at]
+        order:
+          type: string
+          enum: [asc, desc]
+        q:
+          type: string
+          description: The query as applied; empty when none was given.
+        type:
+          type: string
+          description: The canonical type filter; empty when none was given.
+          enum: ["", video, text]
+        provider:
+          type: string
+          description: The provider filter; empty when none was given.
+    Problem:
+      type: object
+      description: RFC 7807 problem details.
+      required: [title, status]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          description: Problem type; `about:blank` when the HTTP status says it all.
+          default: "about:blank"
+        title:
+          type: string
+          description: Short summary of the HTTP status.
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        detail:
+          type: string
+          description: Human-readable explanation of this occurrence.
+        instance:
+          type: string
+          format: uri-reference
+          description: Path and query of the request that produced the problem.
+        errors:
+          type: object
+          description: Field-level validation messages keyed by parameter name; present on `400`.
+          additionalProperties:
+            type: string
+        batch_id:
+          type: string
+          description: Batch of the synchronisation already running; present on `409` from `POST /api/v1/sync`.
+        request_id:
+          type: string
+          description: Identifier of the request (also sent as the `X-Request-ID` header) for correlation with server logs.
+    SyncRun:
+      type: object
+      description: Audit record of synchronising one provider once.
+      required:
+        - id
+        - batch_id
+        - trigger
+        - provider
+        - status
+        - started_at
+        - finished_at
+        - pages
+        - fetched
+        - inserted
+        - updated
+        - skipped
+        - deactivated
+        - retries
+        - rate_limit_waits
+      properties:
+        id:
+          type: integer
+          format: int64
+        batch_id:
+          type: string
+          description: Opaque identifier shared by the runs of one trigger.
+        trigger:
+          type: string
+          enum: [startup, scheduled, manual]
+        provider:
+          type: string
+          example: provider1
+        status:
+          type: string
+          description: |
+            `running` until the provider has been processed; `skipped_locked`
+            when another instance held the synchronisation lock;
+            `interrupted` when the process stopped mid-run.
+          enum: [running, succeeded, failed, interrupted, skipped_locked]
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Null while the run is in progress.
+        pages:
+          type: integer
+          minimum: 0
+          description: Provider pages fetched.
+        fetched:
+          type: integer
+          minimum: 0
+          description: Items received from the provider, valid or not.
+        inserted:
+          type: integer
+          minimum: 0
+        updated:
+          type: integer
+          minimum: 0
+        skipped:
+          type: integer
+          minimum: 0
+          description: Items rejected during normalisation; see `skipped_reasons`.
+        deactivated:
+          type: integer
+          minimum: 0
+          description: Items soft-deleted because the provider stopped returning them.
+        retries:
+          type: integer
+          minimum: 0
+          description: Provider requests that had to be retried.
+        rate_limit_waits:
+          type: integer
+          minimum: 0
+          description: Provider requests delayed by the outbound rate limiter.
+        error:
+          type: string
+          description: Failure message; empty when the run succeeded.
+        skipped_reasons:
+          type: array
+          description: A bounded sample of the items that were skipped and why.
+          items:
+            type: object
+            required: [external_id, reason]
+            properties:
+              external_id:
+                type: string
+              reason:
+                type: string
+        flags:
+          type: array
+          description: |
+            Conditions worth an operator's attention on a run that still
+            completed: `max_pages_reached`, `no_new_ids_stop`,
+            `deactivation_skipped_ratio`, `provider_ignores_pagination`.
+          items:
+            type: string
+    SyncRunList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          description: Runs ordered newest first.
+          items:
+            $ref: '#/components/schemas/SyncRun'
+    SyncAccepted:
+      type: object
+      required: [batch_id, providers]
+      properties:
+        batch_id:
+          type: string
+          description: Identifier shared by every run this request started.
+        providers:
+          type: array
+          description: Providers that will be synchronised, in processing order.
+          items:
+            type: string
+          example: [provider1, provider2]
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        checks:
+          type: object
+          description: Per-dependency result, `ok` or the failure reason; only the readiness probe reports it.
+          additionalProperties:
+            type: string

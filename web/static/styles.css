@@ -1,0 +1,395 @@
+/* Content Search dashboard.
+   Design tokens first (light, then dark), then layout, then components. */
+
+:root {
+  color-scheme: light dark;
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --text: #1b1f24;
+  --muted: #5c6670;
+  --border: #d7dce2;
+  --accent: #1f5fbf;
+  --on-accent: #ffffff;
+  --accent-soft: #e5edfa;
+  --danger: #b3261e;
+  --danger-soft: #fbe9e7;
+  --video: #6a3ea1;
+  --video-soft: #efe8fa;
+  --article: #0b6b6b;
+  --article-soft: #dff3f3;
+  --focus: #1f5fbf;
+  --radius: 6px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1216;
+    --surface: #181d24;
+    --text: #e4e7eb;
+    --muted: #98a2ad;
+    --border: #2b323b;
+    --accent: #78abf7;
+    --on-accent: #0b1a2e;
+    --accent-soft: #1a2b45;
+    --danger: #f28b82;
+    --danger-soft: #3b1f1d;
+    --video: #c9adf0;
+    --video-soft: #2b2142;
+    --article: #80d4d4;
+    --article-soft: #123333;
+    --focus: #9cc0ff;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Header */
+
+.topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar-row,
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.topbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  min-height: 56px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.sync {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.sync-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* Layout */
+
+main {
+  display: grid;
+  gap: 12px;
+  padding-top: 16px;
+  padding-bottom: 32px;
+}
+
+/* Controls */
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+}
+
+.field-grow {
+  flex: 1 1 220px;
+}
+
+label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+input,
+select,
+.button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+input[type="search"] {
+  width: 100%;
+}
+
+.button {
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.button-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+/* Messages */
+
+.banner {
+  padding: 10px 12px;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  background: var(--danger-soft);
+}
+
+.banner p {
+  margin: 0;
+}
+
+.banner ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.loading,
+.empty {
+  margin: 0;
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.toast {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  max-width: calc(100% - 32px);
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+}
+
+.toast-error {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+/* Results */
+
+.table-wrap {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.results {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+  border-top: 1px solid var(--border);
+}
+
+thead th {
+  border-top: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--bg);
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.results tbody[aria-busy="true"] {
+  opacity: 0.6;
+}
+
+.title a {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.title a:hover {
+  text-decoration: underline;
+}
+
+.score {
+  cursor: help;
+  text-decoration: underline dotted var(--muted);
+}
+
+.badge,
+.chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.badge {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.badge-video {
+  color: var(--video);
+  background: var(--video-soft);
+}
+
+.badge-text {
+  color: var(--article);
+  background: var(--article-soft);
+}
+
+.badge-other {
+  color: var(--muted);
+  background: var(--bg);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* Pagination */
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pagination p {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* Narrow screens: every row becomes a card with the column name in front of
+   each value. The header row stays in the DOM for assistive technology. */
+
+@media (max-width: 640px) {
+  .results,
+  .results tbody,
+  .results tr {
+    display: block;
+  }
+
+  .results thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .results tr {
+    padding: 8px 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .results tr:first-child {
+    border-top: 0;
+  }
+
+  .results td {
+    display: grid;
+    grid-template-columns: 84px 1fr;
+    gap: 8px;
+    padding: 3px 12px;
+    border: 0;
+  }
+
+  .results td::before {
+    content: attr(data-label);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.8;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .num {
+    text-align: left;
+  }
+
+  .pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}

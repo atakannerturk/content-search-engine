@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Search and rank content aggregated from several providers.">
+  <title>Content Search</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-row">
+      <h1>Content Search</h1>
+      <div class="sync">
+        <p id="sync-status" class="sync-status" aria-live="polite">Last sync: checking...</p>
+        <button id="sync-button" type="button" class="button button-primary">Sync now</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <form id="controls" class="controls" autocomplete="off">
+      <div class="field field-grow">
+        <label for="q">Search</label>
+        <input id="q" name="q" type="search" placeholder="Title or tag" spellcheck="false">
+      </div>
+      <div class="field">
+        <label for="type">Type</label>
+        <select id="type" name="type">
+          <option value="">All</option>
+          <option value="video">Video</option>
+          <option value="text">Text</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="sort">Sort</label>
+        <select id="sort" name="sort">
+          <option value="score">Popularity</option>
+          <option value="relevance">Relevance</option>
+          <option value="published_at">Newest</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="order">Order</label>
+        <button id="order" type="button" class="button" title="Toggle sort order">Descending</button>
+      </div>
+      <div class="field">
+        <label for="per-page">Per page</label>
+        <select id="per-page" name="per_page">
+          <option value="10">10</option>
+          <option value="20" selected>20</option>
+          <option value="50">50</option>
+        </select>
+      </div>
+    </form>
+
+    <div id="error" class="banner" role="alert" hidden></div>
+    <p id="loading" class="loading" aria-live="polite" hidden>Loading...</p>
+
+    <div class="table-wrap">
+      <table class="results" role="table" aria-label="Search results">
+        <thead role="rowgroup">
+          <tr role="row">
+            <th role="columnheader" scope="col">Title</th>
+            <th role="columnheader" scope="col">Type</th>
+            <th role="columnheader" scope="col" class="num">Score</th>
+            <th role="columnheader" scope="col">Published</th>
+            <th role="columnheader" scope="col">Provider</th>
+            <th role="columnheader" scope="col">Tags</th>
+          </tr>
+        </thead>
+        <tbody id="results" role="rowgroup"></tbody>
+      </table>
+      <p id="empty" class="empty" hidden></p>
+    </div>
+
+    <nav class="pagination" aria-label="Pagination">
+      <button id="prev" type="button" class="button" disabled>Previous</button>
+      <p id="summary" aria-live="polite"></p>
+      <button id="next" type="button" class="button" disabled>Next</button>
+    </nav>
+  </main>
+
+  <p id="toast" class="toast" role="status" aria-live="polite" hidden></p>
+</body>
+</html>
